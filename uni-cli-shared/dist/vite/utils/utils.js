@@ -14,6 +14,14 @@ function withSourcemap(config) {
     return !!config.build.sourcemap;
 }
 exports.withSourcemap = withSourcemap;
+function kebabCase(key) {
+    if (!key)
+        return key;
+    
+    const result = key.replace(/([A-Z])/g, " $1").trim();
+    return result.split(" ").join("-").toLowerCase();
+}
+exports.kebabCase = kebabCase;
 function isInHybridNVue(config) {
     return config.nvue && process.env.UNI_RENDERER !== 'native';
 }

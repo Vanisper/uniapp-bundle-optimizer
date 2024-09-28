@@ -4,6 +4,11 @@ type BindingComponents = Record<string, {
     tag: string;
     type: 'unknown' | 'setup' | 'self';
 }>;
+type BindingAsyncComponents = Record<string, {
+    tag: string;
+    value: string;
+    type: 'asyncComponent';
+}>;
 interface MainDescriptor {
     imports: ImportDeclaration[];
     script: string;
@@ -21,6 +26,7 @@ export declare function updateMiniProgramGlobalComponents(filename: string, ast:
 }>;
 export declare function updateMiniProgramComponentsByMainFilename(mainFilename: string, inputDir: string, normalizeComponentName: (name: string) => string): void;
 export interface TemplateDescriptor {
+    bindingAsyncComponents: BindingAsyncComponents | null;
     bindingComponents: BindingComponents;
     imports: ImportDeclaration[];
 }

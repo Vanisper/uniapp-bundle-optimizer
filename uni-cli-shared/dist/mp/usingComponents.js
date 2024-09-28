@@ -123,6 +123,9 @@ function updateMiniProgramComponentsByMainFilename(mainFilename, inputDir, norma
     }, scriptDescriptor.bindingComponents);
     const imports = parseImports(mainDescriptor.imports, scriptDescriptor.imports, templateDescriptor.imports);
     (0, jsonFile_1.addMiniProgramUsingComponents)((0, utils_1.removeExt)((0, utils_1.normalizeMiniProgramFilename)(mainFilename, inputDir)), createUsingComponents(bindingComponents, imports, inputDir, normalizeComponentName));
+    if(scriptDescriptor.bindingAsyncComponents) {
+        (0, jsonFile_1.addMiniProgramAsyncComponents)((0, utils_1.removeExt)((0, utils_1.normalizeMiniProgramFilename)(mainFilename, inputDir)), scriptDescriptor.bindingAsyncComponents);
+    }
 }
 exports.updateMiniProgramComponentsByMainFilename = updateMiniProgramComponentsByMainFilename;
 function findBindingComponent(tag, bindingComponents) {
@@ -175,7 +178,9 @@ async function parseTemplateDescriptor(filename, ast, options) {
     const imports = options.isExternal
         ? await parseVueComponentImports(filename, ast.body.filter((node) => (0, types_1.isImportDeclaration)(node)), options.resolve)
         : [];
+    const asyncCustomComponents = parseAsyncComponents(ast);
     const descriptor = {
+        bindingAsyncComponents: asyncCustomComponents,
         bindingComponents: findBindingComponents(ast.body),
         imports,
     };
@@ -344,14 +349,58 @@ function parseComponents(ast) {
                 if (!(0, types_1.isIdentifier)(prop.value)) {
                     return;
                 }
-                bindingComponents[prop.value.name] = {
-                    tag: (0, types_1.isIdentifier)(prop.key) ? prop.key.name : prop.key.value,
+                // 短横线命名法
+                bindingComponents[utils_2.kebabCase(prop.value.name)] = {
+                    tag: (0, types_1.isIdentifier)(prop.key) ? utils_2.kebabCase(prop.key.name) : prop.key.value,
                     type: 'unknown',
                 };
             });
         },
     });
     return bindingComponents;
+}
+/**
+ * 从 asyncComponents 中查找定义的异步分包组件
+ * @param ast
+ * @param bindingAsyncComponents | null
+ */
+function parseAsyncComponents(ast) {
+    const bindingAsyncComponents = {};
+    estree_walker_1.walk(ast, {
+        enter(child) {
+            if (!(0, types_1.isObjectExpression)(child)) {
+                return;
+            }
+            const componentsProp = child.properties.find((prop) => (0, types_1.isObjectProperty)(prop) &&
+                (0, types_1.isIdentifier)(prop.key) &&
+                prop.key.name === 'asyncCustomComponents');
+            if (!componentsProp) {
+                return;
+            }
+            const componentsExpr = componentsProp.value;
+            if (!(0, types_1.isObjectExpression)(componentsExpr)) {
+                return;
+            }
+            componentsExpr.properties.forEach((prop) => {
+                if (!(0, types_1.isObjectProperty)(prop)) {
+                    return;
+                }
+                if (!(0, types_1.isIdentifier)(prop.key)) {
+                    return;
+                }
+                if (!(0, types_1.isStringLiteral)(prop.value)) {
+                    return;
+                }
+                // 短横线命名法
+                bindingAsyncComponents[utils_2.kebabCase(prop.key.name)] = {
+                    tag: utils_2.kebabCase(prop.key.name),
+                    value: prop.value.value,
+                    type: 'asyncComponent',
+                };
+            });
+        },
+    });
+    return Object.keys(bindingAsyncComponents).length ? bindingAsyncComponents : null;
 }
 /**
  * vue component imports

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.findUsingComponentsJson = exports.findMiniProgramUsingComponents = exports.isMiniProgramUsingComponent = exports.addMiniProgramUsingComponents = exports.addMiniProgramComponentJson = exports.addMiniProgramPageJson = exports.addMiniProgramAppJson = exports.findChangedJsonFiles = exports.normalizeJsonFilename = exports.findUsingComponents = exports.findJsonFile = exports.getComponentJsonFilenames = exports.hasJsonFile = exports.isMiniProgramPageSfcFile = exports.isMiniProgramPageFile = void 0;
+exports.findUsingComponentsJson = exports.findMiniProgramUsingComponents = exports.isMiniProgramUsingComponent = exports.addMiniProgramUsingComponents = exports.addMiniProgramAsyncComponents = exports.addMiniProgramComponentJson = exports.addMiniProgramPageJson = exports.addMiniProgramAppJson = exports.findChangedJsonFiles = exports.normalizeJsonFilename = exports.findUsingComponents = exports.findJsonFile = exports.getComponentJsonFilenames = exports.hasJsonFile = exports.isMiniProgramPageSfcFile = exports.isMiniProgramPageFile = void 0;
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
 const shared_1 = require("@vue/shared");
@@ -15,6 +15,7 @@ const jsonFilesCache = new Map();
 const jsonPagesCache = new Map();
 const jsonComponentsCache = new Map();
 const jsonUsingComponentsCache = new Map();
+const jsonAsyncComponentsCache = new Map();
 function isMiniProgramPageFile(file, inputDir) {
     if (inputDir && path_1.default.isAbsolute(file)) {
         file = (0, utils_1.normalizePath)(path_1.default.relative(inputDir, file));
@@ -47,6 +48,10 @@ function findUsingComponents(filename) {
     return jsonUsingComponentsCache.get(filename);
 }
 exports.findUsingComponents = findUsingComponents;
+function findAsyncComponents(filename) {
+    return jsonAsyncComponentsCache.get(filename);
+}
+exports.findAsyncComponents = findAsyncComponents;
 function normalizeJsonFilename(filename) {
     return (0, utils_1.normalizeNodeModules)(filename);
 }
@@ -81,6 +86,20 @@ function findChangedJsonFiles(supportGlobalUsingComponents = true) {
                 }
             });
             newJson.usingComponents = usingComponents;
+            let asyncComponents = []
+            if(jsonAsyncComponentsCache.get(filename)) {
+                const rename = (name) => name.startsWith('wx-') ? name.replace('wx-', 'weixin-') : name
+                asyncComponents = Object.entries(jsonAsyncComponentsCache.get(filename)).reduce((p, [key, value]) => {
+                    p[rename(key)] = value.value
+                    return p
+                }, {})
+                const componentPlaceholder = Object.entries(jsonAsyncComponentsCache.get(filename)).reduce((p, [key, value]) => {
+                    p[rename(key)] = 'view'
+                    return p
+                }, {})
+                newJson.componentPlaceholder = Object.assign((newJson.componentPlaceholder || {}), componentPlaceholder);
+            }
+           newJson.usingComponents = Object.assign(usingComponents, asyncComponents);
         }
         const jsonStr = JSON.stringify(newJson, null, 2);
         if (jsonFilesCache.get(filename) !== jsonStr) {
@@ -115,6 +134,10 @@ function addMiniProgramUsingComponents(filename, json) {
     jsonUsingComponentsCache.set(filename, json);
 }
 exports.addMiniProgramUsingComponents = addMiniProgramUsingComponents;
+function addMiniProgramAsyncComponents(filename, json) {
+    jsonAsyncComponentsCache.set(filename, json);
+}
+exports.addMiniProgramAsyncComponents = addMiniProgramAsyncComponents;
 function isMiniProgramUsingComponent(name, options) {
     return !!findMiniProgramUsingComponents(options)[name];
 }

@@ -3,6 +3,7 @@ import type { RollupError } from 'rollup';
 import type { CompilerError } from '@vue/compiler-sfc';
 import { codeFrameColumns } from '@babel/code-frame';
 export declare function withSourcemap(config: ResolvedConfig): boolean;
+export declare function kebabCase(key: string): string;
 export declare function isInHybridNVue(config: UserConfig | ResolvedConfig): boolean;
 export declare function isSsr(command: ConfigEnv['command'], config: UserConfig | ResolvedConfig): boolean;
 export declare function createRollupError(plugin: string, id: string, error: CompilerError | SyntaxError, source?: string): RollupError;
