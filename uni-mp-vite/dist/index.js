@@ -1,5 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+// 引入一个初始化环境变量的脚本
+require("./env");
 const shared_1 = require("@vue/shared");
 const uni_cli_shared_1 = require("@dcloudio/uni-cli-shared");
 const plugin_1 = require("./plugin");
