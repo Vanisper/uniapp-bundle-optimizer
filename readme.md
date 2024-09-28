@@ -29,3 +29,38 @@
 >   }
 > },
 > ```
+
+## 异步分包
+
+> 需要为 `@vue/runtime-core` 添加类型标注，添加以下代码到 `src/shims-vue.d.ts` 文件中（或者其他控制全局类型定义的文件，视项目具体情况而定）：
+>
+> ```ts
+> import { ComponentOptionsBase } from '@vue/runtime-core';
+>
+> declare module '@vue/runtime-core' {
+>   interface ComponentOptionsBase<Props, RawBindings, D, C extends ComputedOptions, M extends MethodOptions, E extends EmitsOptions, EE extends string = string> {
+>     asyncCustomComponents?: Record<string, string>;
+>   }
+> }
+> ```
+> 
+> 这样之后，可以在 `vue` 文件中使用 `asyncCustomComponents` 字段，如：
+> ```vue
+> <script lang="ts">
+> import DemoCopm from "@/subpackage/components/demo/index.vue"
+> 
+> export default defineComponent({
+>   components: {
+>     DemoCopm,
+>   },
+>   asyncCustomComponents: {
+>     DemoCopm: "../subpackage/components/demo/index",
+>   },
+> })
+> </script>
+> ```
+> 
+> 这样就是显式注册了一个异步组件，允许跨包调用，这是由[微信小程序原生支持的](https://developers.weixin.qq.com/miniprogram/dev/framework/subpackages/async.html)，uniapp并没有对其进行封装，本次补丁修改实现了这一功能。
+> 
+> 本补丁也是依靠uniapp官方仓库下相关issue的讨论，后续有时间整理一下参考链接，感谢各位大佬们的讨论。
+> 
