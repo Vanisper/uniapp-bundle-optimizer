@@ -1,0 +1,224 @@
+diff --git a/dist/json/mp/jsonFile.d.ts b/dist/json/mp/jsonFile.d.ts
+index 3734bd4226a69f8416e2e42334bd7c762993241c..ba44d7c2d72f32e6a598727a56e1f8189fe68073 100644
+--- a/dist/json/mp/jsonFile.d.ts
++++ b/dist/json/mp/jsonFile.d.ts
+@@ -5,12 +5,14 @@ export declare function hasJsonFile(filename: string): boolean;
+ export declare function getComponentJsonFilenames(): string[];
+ export declare function findJsonFile(filename: string): Record<string, any> | ComponentJson | PageWindowOptions | undefined;
+ export declare function findUsingComponents(filename: string): UsingComponents | undefined;
++export declare function findAsyncComponents(filename: string): UsingComponents | undefined;
+ export declare function normalizeJsonFilename(filename: string): string;
+ export declare function findChangedJsonFiles(supportGlobalUsingComponents?: boolean): Map<string, string>;
+ export declare function addMiniProgramAppJson(appJson: Record<string, any>): void;
+ export declare function addMiniProgramPageJson(filename: string, json: PageWindowOptions): void;
+ export declare function addMiniProgramComponentJson(filename: string, json: ComponentJson): void;
+ export declare function addMiniProgramUsingComponents(filename: string, json: UsingComponents): void;
++export declare function addMiniProgramAsyncComponents(filename: string, json: UsingComponents): void;
+ export declare function isMiniProgramUsingComponent(name: string, options: {
+     filename: string;
+     inputDir: string;
+diff --git a/dist/json/mp/jsonFile.js b/dist/json/mp/jsonFile.js
+index 9533da3a8add84cf8ce809543baea09bec4cedb4..9dad25b00f2903c64a83a13356beacb99761d7db 100644
+--- a/dist/json/mp/jsonFile.js
++++ b/dist/json/mp/jsonFile.js
+@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
+     return (mod && mod.__esModule) ? mod : { "default": mod };
+ };
+ Object.defineProperty(exports, "__esModule", { value: true });
+-exports.findUsingComponentsJson = exports.findMiniProgramUsingComponents = exports.isMiniProgramUsingComponent = exports.addMiniProgramUsingComponents = exports.addMiniProgramComponentJson = exports.addMiniProgramPageJson = exports.addMiniProgramAppJson = exports.findChangedJsonFiles = exports.normalizeJsonFilename = exports.findUsingComponents = exports.findJsonFile = exports.getComponentJsonFilenames = exports.hasJsonFile = exports.isMiniProgramPageSfcFile = exports.isMiniProgramPageFile = void 0;
++exports.findUsingComponentsJson = exports.findMiniProgramUsingComponents = exports.isMiniProgramUsingComponent = exports.addMiniProgramUsingComponents = exports.addMiniProgramAsyncComponents = exports.addMiniProgramComponentJson = exports.addMiniProgramPageJson = exports.addMiniProgramAppJson = exports.findChangedJsonFiles = exports.normalizeJsonFilename = exports.findUsingComponents = exports.findJsonFile = exports.getComponentJsonFilenames = exports.hasJsonFile = exports.isMiniProgramPageSfcFile = exports.isMiniProgramPageFile = void 0;
+ const path_1 = __importDefault(require("path"));
+ const fs_1 = __importDefault(require("fs"));
+ const shared_1 = require("@vue/shared");
+@@ -15,6 +15,7 @@ const jsonFilesCache = new Map();
+ const jsonPagesCache = new Map();
+ const jsonComponentsCache = new Map();
+ const jsonUsingComponentsCache = new Map();
++const jsonAsyncComponentsCache = new Map();
+ function isMiniProgramPageFile(file, inputDir) {
+     if (inputDir && path_1.default.isAbsolute(file)) {
+         file = (0, utils_1.normalizePath)(path_1.default.relative(inputDir, file));
+@@ -47,6 +48,10 @@ function findUsingComponents(filename) {
+     return jsonUsingComponentsCache.get(filename);
+ }
+ exports.findUsingComponents = findUsingComponents;
++function findAsyncComponents(filename) {
++    return jsonAsyncComponentsCache.get(filename);
++}
++exports.findAsyncComponents = findAsyncComponents;
+ function normalizeJsonFilename(filename) {
+     return (0, utils_1.normalizeNodeModules)(filename);
+ }
+@@ -81,6 +86,20 @@ function findChangedJsonFiles(supportGlobalUsingComponents = true) {
+                 }
+             });
+             newJson.usingComponents = usingComponents;
++            let asyncComponents = []
++            if(jsonAsyncComponentsCache.get(filename)) {
++                const rename = (name) => name.startsWith('wx-') ? name.replace('wx-', 'weixin-') : name
++                asyncComponents = Object.entries(jsonAsyncComponentsCache.get(filename)).reduce((p, [key, value]) => {
++                    p[rename(key)] = value.value
++                    return p
++                }, {})
++                const componentPlaceholder = Object.entries(jsonAsyncComponentsCache.get(filename)).reduce((p, [key, value]) => {
++                    p[rename(key)] = 'view'
++                    return p
++                }, {})
++                newJson.componentPlaceholder = Object.assign((newJson.componentPlaceholder || {}), componentPlaceholder);
++            }
++           newJson.usingComponents = Object.assign(usingComponents, asyncComponents);
+         }
+         const jsonStr = JSON.stringify(newJson, null, 2);
+         if (jsonFilesCache.get(filename) !== jsonStr) {
+@@ -115,6 +134,10 @@ function addMiniProgramUsingComponents(filename, json) {
+     jsonUsingComponentsCache.set(filename, json);
+ }
+ exports.addMiniProgramUsingComponents = addMiniProgramUsingComponents;
++function addMiniProgramAsyncComponents(filename, json) {
++    jsonAsyncComponentsCache.set(filename, json);
++}
++exports.addMiniProgramAsyncComponents = addMiniProgramAsyncComponents;
+ function isMiniProgramUsingComponent(name, options) {
+     return !!findMiniProgramUsingComponents(options)[name];
+ }
+diff --git a/dist/mp/usingComponents.d.ts b/dist/mp/usingComponents.d.ts
+index 52184cfa531c27c551cab7d2433e75c2aa28d3d1..d345801cc7c88d01fe3c3f8d57448032ede68ca0 100644
+--- a/dist/mp/usingComponents.d.ts
++++ b/dist/mp/usingComponents.d.ts
+@@ -4,6 +4,11 @@ type BindingComponents = Record<string, {
+     tag: string;
+     type: 'unknown' | 'setup' | 'self';
+ }>;
++type BindingAsyncComponents = Record<string, {
++    tag: string;
++    value: string;
++    type: 'asyncComponent';
++}>;
+ interface MainDescriptor {
+     imports: ImportDeclaration[];
+     script: string;
+@@ -21,6 +26,7 @@ export declare function updateMiniProgramGlobalComponents(filename: string, ast:
+ }>;
+ export declare function updateMiniProgramComponentsByMainFilename(mainFilename: string, inputDir: string, normalizeComponentName: (name: string) => string): void;
+ export interface TemplateDescriptor {
++    bindingAsyncComponents: BindingAsyncComponents | null;
+     bindingComponents: BindingComponents;
+     imports: ImportDeclaration[];
+ }
+diff --git a/dist/mp/usingComponents.js b/dist/mp/usingComponents.js
+index 8ded305654c9111e2eefb466fe6390ca8881a45d..230d565f19e1cb3246e9b6bad8ba116b7fa26a3f 100644
+--- a/dist/mp/usingComponents.js
++++ b/dist/mp/usingComponents.js
+@@ -123,6 +123,9 @@ function updateMiniProgramComponentsByMainFilename(mainFilename, inputDir, norma
+     }, scriptDescriptor.bindingComponents);
+     const imports = parseImports(mainDescriptor.imports, scriptDescriptor.imports, templateDescriptor.imports);
+     (0, jsonFile_1.addMiniProgramUsingComponents)((0, utils_1.removeExt)((0, utils_1.normalizeMiniProgramFilename)(mainFilename, inputDir)), createUsingComponents(bindingComponents, imports, inputDir, normalizeComponentName));
++    if(scriptDescriptor.bindingAsyncComponents) {
++        (0, jsonFile_1.addMiniProgramAsyncComponents)((0, utils_1.removeExt)((0, utils_1.normalizeMiniProgramFilename)(mainFilename, inputDir)), scriptDescriptor.bindingAsyncComponents);
++    }
+ }
+ exports.updateMiniProgramComponentsByMainFilename = updateMiniProgramComponentsByMainFilename;
+ function findBindingComponent(tag, bindingComponents) {
+@@ -175,7 +178,9 @@ async function parseTemplateDescriptor(filename, ast, options) {
+     const imports = options.isExternal
+         ? await parseVueComponentImports(filename, ast.body.filter((node) => (0, types_1.isImportDeclaration)(node)), options.resolve)
+         : [];
++    const asyncCustomComponents = parseAsyncComponents(ast);
+     const descriptor = {
++        bindingAsyncComponents: asyncCustomComponents,
+         bindingComponents: findBindingComponents(ast.body),
+         imports,
+     };
+@@ -344,8 +349,9 @@ function parseComponents(ast) {
+                 if (!(0, types_1.isIdentifier)(prop.value)) {
+                     return;
+                 }
+-                bindingComponents[prop.value.name] = {
+-                    tag: (0, types_1.isIdentifier)(prop.key) ? prop.key.name : prop.key.value,
++                // 短横线命名法
++                bindingComponents[utils_2.kebabCase(prop.value.name)] = {
++                    tag: (0, types_1.isIdentifier)(prop.key) ? utils_2.kebabCase(prop.key.name) : prop.key.value,
+                     type: 'unknown',
+                 };
+             });
+@@ -353,6 +359,49 @@ function parseComponents(ast) {
+     });
+     return bindingComponents;
+ }
++/**
++ * 从 asyncComponents 中查找定义的异步分包组件
++ * @param ast
++ * @param bindingAsyncComponents | null
++ */
++function parseAsyncComponents(ast) {
++    const bindingAsyncComponents = {};
++    estree_walker_1.walk(ast, {
++        enter(child) {
++            if (!(0, types_1.isObjectExpression)(child)) {
++                return;
++            }
++            const componentsProp = child.properties.find((prop) => (0, types_1.isObjectProperty)(prop) &&
++                (0, types_1.isIdentifier)(prop.key) &&
++                prop.key.name === 'asyncCustomComponents');
++            if (!componentsProp) {
++                return;
++            }
++            const componentsExpr = componentsProp.value;
++            if (!(0, types_1.isObjectExpression)(componentsExpr)) {
++                return;
++            }
++            componentsExpr.properties.forEach((prop) => {
++                if (!(0, types_1.isObjectProperty)(prop)) {
++                    return;
++                }
++                if (!(0, types_1.isIdentifier)(prop.key)) {
++                    return;
++                }
++                if (!(0, types_1.isStringLiteral)(prop.value)) {
++                    return;
++                }
++                // 短横线命名法
++                bindingAsyncComponents[utils_2.kebabCase(prop.key.name)] = {
++                    tag: utils_2.kebabCase(prop.key.name),
++                    value: prop.value.value,
++                    type: 'asyncComponent',
++                };
++            });
++        },
++    });
++    return Object.keys(bindingAsyncComponents).length ? bindingAsyncComponents : null;
++}
+ /**
+  * vue component imports
+  * @param filename
+diff --git a/dist/vite/utils/utils.d.ts b/dist/vite/utils/utils.d.ts
+index 903d98c0f8e26c57ee887f3ff93d9eac72bf279b..90c9ad54906e03d96be08140e53b4ee014488efa 100644
+--- a/dist/vite/utils/utils.d.ts
++++ b/dist/vite/utils/utils.d.ts
+@@ -3,6 +3,7 @@ import type { RollupError } from 'rollup';
+ import type { CompilerError } from '@vue/compiler-sfc';
+ import { codeFrameColumns } from '@babel/code-frame';
+ export declare function withSourcemap(config: ResolvedConfig): boolean;
++export declare function kebabCase(key: string): string;
+ export declare function isInHybridNVue(config: UserConfig | ResolvedConfig): boolean;
+ export declare function isSsr(command: ConfigEnv['command'], config: UserConfig | ResolvedConfig): boolean;
+ export declare function createRollupError(plugin: string, id: string, error: CompilerError | SyntaxError, source?: string): RollupError;
+diff --git a/dist/vite/utils/utils.js b/dist/vite/utils/utils.js
+index 5cd6e1618bb65de505f22083631522deb14abc2b..385b3f212184e4edc1ff17b772a9c8fe23c4b946 100644
+--- a/dist/vite/utils/utils.js
++++ b/dist/vite/utils/utils.js
+@@ -14,6 +14,14 @@ function withSourcemap(config) {
+     return !!config.build.sourcemap;
+ }
+ exports.withSourcemap = withSourcemap;
++function kebabCase(key) {
++    if (!key)
++        return key;
++    
++    const result = key.replace(/([A-Z])/g, " $1").trim();
++    return result.split(" ").join("-").toLowerCase();
++}
++exports.kebabCase = kebabCase;
+ function isInHybridNVue(config) {
+     return config.nvue && process.env.UNI_RENDERER !== 'native';
+ }
