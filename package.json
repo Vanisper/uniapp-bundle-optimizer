@@ -90,5 +90,10 @@
     "unocss": "^0.62.4",
     "vite": "5.2.8",
     "vue-tsc": "^2.1.6"
+  },
+  "pnpm": {
+    "patchedDependencies": {
+      "@dcloudio/uni-mp-vite@3.0.0-4020820240925001": "patches/@dcloudio__uni-mp-vite@3.0.0-4020820240925001.patch"
+    }
   }
 }
