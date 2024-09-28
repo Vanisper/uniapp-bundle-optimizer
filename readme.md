@@ -12,7 +12,7 @@
 >
 > 运行 `pnpm patch @dcloudio/uni-mp-vite@3.0.0-4020820240925001` （**注意此处的版本号是否与你的项目版本号一致，本分支仅对该分支的版本负责**）。
 >
-> 前往补丁编辑目录，下载分支 `releases` 中的 `@dcloudio__uni-mp-vite.zip` 全量覆盖即可（再次声明，**本分支仅对该分支的版本负责**）。
+> 前往补丁编辑目录，下载 `releases` 中 `分包优化实现@3.0.0-4020820240925001` 的 `@dcloudio__uni-mp-vite@3.0.0-4020820240925001.zip` 全量覆盖即可（再次声明，**本分支仅对该分支的版本负责**）。
 >
 > 最后需要执行 `pnpm commit [之前的补丁编辑目录]`，使补丁生效。
 >
@@ -43,12 +43,12 @@
 >   }
 > }
 > ```
-> 
 > 这样之后，可以在 `vue` 文件中使用 `asyncCustomComponents` 字段，如：
+>
 > ```vue
 > <script lang="ts">
 > import DemoCopm from "@/subpackage/components/demo/index.vue"
-> 
+>
 > export default defineComponent({
 >   components: {
 >     DemoCopm,
@@ -59,8 +59,12 @@
 > })
 > </script>
 > ```
-> 
 > 这样就是显式注册了一个异步组件，允许跨包调用，这是由[微信小程序原生支持的](https://developers.weixin.qq.com/miniprogram/dev/framework/subpackages/async.html)，uniapp并没有对其进行封装，本次补丁修改实现了这一功能。
-> 
+>
 > 本补丁也是依靠uniapp官方仓库下相关issue的讨论，后续有时间整理一下参考链接，感谢各位大佬们的讨论。
-> 
+>
+> ---
+>
+> 本补丁修改使用方法与上面的 `分包优化` 一致，只是需要下载的是 `异步分包实现@3.0.0-4020820240925001` 的 `@dcloudio__uni-cli-shared@3.0.0-4020820240925001.zip` 和 `@dcloudio__uni-mp-vite@3.0.0-4020820240925001.zip`。
+>
+> 注意，**此补丁的提交是增量提交**，所以按照操作打好此次补丁之后，`分包优化` 的补丁功能也会生效。
