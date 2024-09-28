@@ -70,7 +70,7 @@
     "wot-design-uni": "^1.3.10"
   },
   "devDependencies": {
-    "@dcloudio/types": "3.4.8",
+    "@dcloudio/types": "3.4.11",
     "@dcloudio/uni-automator": "3.0.0-4020820240925001",
     "@dcloudio/uni-cli-shared": "3.0.0-4020820240925001",
     "@dcloudio/uni-stacktracey": "3.0.0-4020820240925001",
