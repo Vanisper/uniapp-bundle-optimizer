@@ -178,9 +178,7 @@ async function parseTemplateDescriptor(filename, ast, options) {
     const imports = options.isExternal
         ? await parseVueComponentImports(filename, ast.body.filter((node) => (0, types_1.isImportDeclaration)(node)), options.resolve)
         : [];
-    const asyncCustomComponents = parseAsyncComponents(ast);
     const descriptor = {
-        bindingAsyncComponents: asyncCustomComponents,
         bindingComponents: findBindingComponents(ast.body),
         imports,
     };
@@ -211,6 +209,7 @@ async function parseScriptDescriptor(filename, ast, options) {
         : [];
     const descriptor = {
         bindingComponents: parseComponents(ast),
+        bindingAsyncComponents: parseAsyncComponents(ast),
         setupBindingComponents: findBindingComponents(ast.body),
         imports,
     };
