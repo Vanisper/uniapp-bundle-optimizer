@@ -5,6 +5,8 @@ import Components from '@uni-helper/vite-plugin-uni-components'
 import { WotResolver } from '@uni-helper/vite-plugin-uni-components/resolvers'
 import { defineConfig } from 'vite'
 
+import UniappSubPackagesOptimization from './plugins/UniappSubPackagesOptimization'
+
 export default defineConfig(async () => {
   const UnoCSS = (await import('unocss/vite')).default
 
@@ -16,6 +18,8 @@ export default defineConfig(async () => {
       },
     },
     plugins: [
+      // TODO: 开启此插件也能实现分包优化
+      // UniappSubPackagesOptimization(),
       uni(),
       UnoCSS(),
       Components({
