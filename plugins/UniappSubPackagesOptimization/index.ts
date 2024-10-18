@@ -138,7 +138,7 @@ export function UniappSubPackagesOptimization(): Plugin {
         }
         // #endregion
 
-        // 如果已有的 manualChunks 存在且匹配，则优先使用
+        // 调用已有的 manualChunks 配置 ｜ 此处必须考虑到原有的配置，是为了使 uniapp 原本的分包配置生效
         if (existingManualChunks)
           return existingManualChunks(id, meta)
       }
