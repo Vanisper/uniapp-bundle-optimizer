@@ -9,6 +9,7 @@ export default defineConfig(async () => {
   const UnoCSS = (await import('unocss/vite')).default
 
   return {
+    base: './',
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
