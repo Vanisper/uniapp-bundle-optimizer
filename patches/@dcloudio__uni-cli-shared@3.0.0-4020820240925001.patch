@@ -106,7 +106,7 @@ index 52184cfa531c27c551cab7d2433e75c2aa28d3d1..d345801cc7c88d01fe3c3f8d57448032
      imports: ImportDeclaration[];
  }
 diff --git a/dist/mp/usingComponents.js b/dist/mp/usingComponents.js
-index 8ded305654c9111e2eefb466fe6390ca8881a45d..230d565f19e1cb3246e9b6bad8ba116b7fa26a3f 100644
+index 8ded305654c9111e2eefb466fe6390ca8881a45d..656ca4bfc385bdec926816f3ed0d467ec4dd5cbd 100644
 --- a/dist/mp/usingComponents.js
 +++ b/dist/mp/usingComponents.js
 @@ -123,6 +123,9 @@ function updateMiniProgramComponentsByMainFilename(mainFilename, inputDir, norma
@@ -119,17 +119,15 @@ index 8ded305654c9111e2eefb466fe6390ca8881a45d..230d565f19e1cb3246e9b6bad8ba116b
  }
  exports.updateMiniProgramComponentsByMainFilename = updateMiniProgramComponentsByMainFilename;
  function findBindingComponent(tag, bindingComponents) {
-@@ -175,7 +178,9 @@ async function parseTemplateDescriptor(filename, ast, options) {
-     const imports = options.isExternal
-         ? await parseVueComponentImports(filename, ast.body.filter((node) => (0, types_1.isImportDeclaration)(node)), options.resolve)
+@@ -206,6 +209,7 @@ async function parseScriptDescriptor(filename, ast, options) {
          : [];
-+    const asyncCustomComponents = parseAsyncComponents(ast);
      const descriptor = {
-+        bindingAsyncComponents: asyncCustomComponents,
-         bindingComponents: findBindingComponents(ast.body),
+         bindingComponents: parseComponents(ast),
++        bindingAsyncComponents: parseAsyncComponents(ast),
+         setupBindingComponents: findBindingComponents(ast.body),
          imports,
      };
-@@ -344,8 +349,9 @@ function parseComponents(ast) {
+@@ -344,8 +348,9 @@ function parseComponents(ast) {
                  if (!(0, types_1.isIdentifier)(prop.value)) {
                      return;
                  }
@@ -141,7 +139,7 @@ index 8ded305654c9111e2eefb466fe6390ca8881a45d..230d565f19e1cb3246e9b6bad8ba116b
                      type: 'unknown',
                  };
              });
-@@ -353,6 +359,49 @@ function parseComponents(ast) {
+@@ -353,6 +358,49 @@ function parseComponents(ast) {
      });
      return bindingComponents;
  }
