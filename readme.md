@@ -8,4 +8,4 @@
 
 * [X] 分包优化——补丁版
 * [X] 异步分包——补丁版
-* [ ] 插件化
+* [ ] 插件化：实现中，见 [plugins/UniappSubPackagesOptimization](./plugins/UniappSubPackagesOptimization/index.ts) 目录，使用方法与其他vite插件一样，在 `vite.config.ts` 中引入即可（注意 [plugins/utils](./plugins/utils/index.ts) 中的相关被使用的方法）。
