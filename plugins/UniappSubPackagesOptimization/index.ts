@@ -36,8 +36,14 @@ export function UniappSubPackagesOptimization(): Plugin {
   const subPackageRoots = subPkgsInfo.map(map2Root)
   const normalSubPackageRoots = subPkgsInfo.filter(normalFilter).map(map2Root)
   const independentSubpackageRoots = subPkgsInfo.filter(independentFilter).map(map2Root)
+  // 依赖进子包中的模块记录
+  const subpackageModules: { [key: string]: Set<string> } = {}
 
-  /** id处理器：将id中的moduleId转换为相对于inputDir的路径并去除查询参数后缀 */
+  /**
+   * # id处理器
+   * ## 未处理`node_modules`模块
+   * @description 将id中的moduleId转换为相对于inputDir的路径并去除查询参数后缀
+   */
   function moduleIdProcessor(id: string) {
     let inputDir = normalizePath(process.env.UNI_INPUT_DIR)
     // 确保inputDir以斜杠结尾
@@ -50,6 +56,11 @@ export function UniappSubPackagesOptimization(): Plugin {
     // 从name中剔除inputDir前缀
     const updatedName = name.replace(inputDir, '')
 
+    // 去除来自`node_modules`模块的前缀
+    if (updatedName.startsWith('\x00')) {
+      return updatedName.slice(1)
+    }
+
     return updatedName
   }
   /** 查找模块列表中是否有属于子包的模块 */
@@ -60,10 +71,36 @@ export function UniappSubPackagesOptimization(): Plugin {
       return pkgs
     }, new Set<string>())
   }
-  /** 判断是否有主包(是否被主包引用) */
-  const hasMainPackage = function (importers: readonly string[]) {
+
+  /** 加入到 `subpackageModules` */
+  const addToSubpackageModules = function (subpackage: string, moduleId: string) {
+    if (!subpackageModules[subpackage]) {
+      subpackageModules[subpackage] = new Set<string>()
+    }
+    subpackageModules[subpackage].add(moduleId)
+  }
+  /** 查找模块列表中是否有属于`subpackageModules`中的记录，命中则返回模块信息 */
+  const findSubpackageModules = function (importers: readonly string[]) {
+    return importers.reduce((pkgs, item) => {
+      for (const key in subpackageModules) {
+        if (subpackageModules[key].has(moduleIdProcessor(item))) {
+          pkgs.add(key)
+        }
+      }
+      return pkgs
+    }, new Set<string>())
+  }
+  /** 判断是否有非子包的import (是否被非子包引用) */
+  const hasNoSubPackage = function (importers: readonly string[]) {
     return importers.some((item) => {
+      // 遍历所有的子包根路径，如果模块的路径不包含子包路径，就说明被非子包引用了
       return !subPackageRoots.some(root => moduleIdProcessor(item).indexOf(root) === 0)
+    })
+  }
+  /** 判断是否有来自`node_modules`下的依赖 */
+  const hasNodeModules = function (importers: readonly string[]) {
+    return hasNoSubPackage(importers) && importers.some((item) => {
+      return moduleIdProcessor(item).includes('node_modules')
     })
   }
   /** 判断该模块引用的模块是否有跨包引用的组件 */
@@ -128,12 +165,46 @@ export function UniappSubPackagesOptimization(): Plugin {
           const moduleInfo = meta.getModuleInfo(id)
           const importers = moduleInfo.importers || [] // 依赖当前模块的模块id
           const matchSubPackages = findSubPackages(importers)
+          let subPackageRoot: string | undefined = matchSubPackages.values().next().value
+
+          const matchSubpackageModules = findSubpackageModules(importers)
+
           if (
-            matchSubPackages.size === 1
-            && !hasMainPackage(importers)
-            && !hasMainPackageComponent(moduleInfo, matchSubPackages.values().next().value)
+            ((matchSubPackages.size === 1
+              && !hasNoSubPackage(importers)
+            )
+            || (
+              matchSubpackageModules.size
+              && hasNodeModules(importers) // 再次确定此模块来自`node_modules`
+            ))
+            && !hasMainPackageComponent(moduleInfo, subPackageRoot)
           ) {
-            return `${matchSubPackages.values().next().value}common/vendor`
+            if (!subPackageRoot) {
+              subPackageRoot = matchSubpackageModules.values().next().value
+              // console.log('-', id)
+            }
+
+            addToSubpackageModules(subPackageRoot, moduleIdProcessor(id)) // 模块引入子包记录
+            return `${subPackageRoot}common/vendor`
+          }
+          else {
+            const target = Object.entries(subpackageModules)
+            for (const [subpackage, modules] of target) {
+              if (modules.size) {
+                const found = Array.from(modules).some((tempId) => {
+                  const tempModuleInfo = meta.getModuleInfo(tempId)
+                  if (tempModuleInfo.importedIds.some(item => item.includes(id))) {
+                    // console.log('+', tempId)
+                    addToSubpackageModules(subpackage, moduleIdProcessor(id)) // 模块引入子包记录
+                    return true
+                  }
+                  return false
+                })
+                if (found) {
+                  return `${subpackage}common/vendor`
+                }
+              }
+            }
           }
         }
         // #endregion
