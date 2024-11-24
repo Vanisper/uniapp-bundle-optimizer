@@ -7,6 +7,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { EXTNAME_JS_RE, parseManifestJsonOnce, parseMiniProgramPagesJson } from '@dcloudio/uni-cli-shared'
 import { normalizePath, replaceStringAtPosition } from '../utils'
+import { PackageModules } from './common/PackageModules'
 
 /**
  * uniapp 分包优化插件
@@ -36,8 +37,8 @@ export function UniappSubPackagesOptimization(): Plugin {
   const subPackageRoots = subPkgsInfo.map(map2Root)
   const normalSubPackageRoots = subPkgsInfo.filter(normalFilter).map(map2Root)
   const independentSubpackageRoots = subPkgsInfo.filter(independentFilter).map(map2Root)
-  // 依赖进子包中的模块记录
-  const subpackageModules: { [key: string]: Set<string> } = {}
+
+  const PackageModulesInstance = new PackageModules(moduleIdProcessor)
 
   /**
    * # id处理器
@@ -72,24 +73,6 @@ export function UniappSubPackagesOptimization(): Plugin {
     }, new Set<string>())
   }
 
-  /** 加入到 `subpackageModules` */
-  const addToSubpackageModules = function (subpackage: string, moduleId: string) {
-    if (!subpackageModules[subpackage]) {
-      subpackageModules[subpackage] = new Set<string>()
-    }
-    subpackageModules[subpackage].add(moduleId)
-  }
-  /** 查找模块列表中是否有属于`subpackageModules`中的记录，命中则返回模块信息 */
-  const findSubpackageModules = function (importers: readonly string[]) {
-    return importers.reduce((pkgs, item) => {
-      for (const key in subpackageModules) {
-        if (subpackageModules[key].has(moduleIdProcessor(item))) {
-          pkgs.add(key)
-        }
-      }
-      return pkgs
-    }, new Set<string>())
-  }
   /** 判断是否有非子包的import (是否被非子包引用) */
   const hasNoSubPackage = function (importers: readonly string[]) {
     return importers.some((item) => {
@@ -167,42 +150,33 @@ export function UniappSubPackagesOptimization(): Plugin {
           const matchSubPackages = findSubPackages(importers)
           let subPackageRoot: string | undefined = matchSubPackages.values().next().value
 
-          const matchSubpackageModules = findSubpackageModules(importers)
+          const matchSubpackageModules = PackageModulesInstance.findModuleInImporters(importers) || {}
+          const matchSubpackage = Object.keys(matchSubpackageModules)[0] // 当前仅支持一个子包引用
+          /**
+           * - 强制将commonjsHelpers.js放入主包，即使这样主包会大1kb左右
+           * - 当主包、分包都需要commonjsHelpers.js时，子包会从主包引入commonjsHelpers.js
+           * - 但是子包热更新时，会出现问题主包从分包中引入commonjsHelpers.js的情况，这是不允许的，
+           * - 虽然重新运行可以解决问题，但是这样开发体验不好
+           */
+          const isCommonjsHelpers = id.includes('commonjsHelpers.js')
 
-          if (
-            ((matchSubPackages.size === 1
-              && !hasNoSubPackage(importers)
-            )
-            || (
-              matchSubpackageModules.size
-              && hasNodeModules(importers) // 再次确定此模块来自`node_modules`
-            ))
-            && !hasMainPackageComponent(moduleInfo, subPackageRoot)
-          ) {
-            if (!subPackageRoot) {
-              subPackageRoot = matchSubpackageModules.values().next().value
-              // console.log('-', id)
+          if (isCommonjsHelpers) {
+            if (((matchSubPackages.size === 1 && !hasNoSubPackage(importers))
+              || (matchSubpackage && hasNodeModules(importers) // 再次确定此模块来自`node_modules`
+              ))
+              && !hasMainPackageComponent(moduleInfo, subPackageRoot)
+            ) {
+              if (!subPackageRoot) {
+                subPackageRoot = matchSubpackage
+              }
+              PackageModulesInstance.addModuleRecord(subPackageRoot, moduleInfo) // 模块引入子包记录，用于链式依赖的索引
+
+              return `${subPackageRoot}common/vendor`
             }
-
-            addToSubpackageModules(subPackageRoot, moduleIdProcessor(id)) // 模块引入子包记录
-            return `${subPackageRoot}common/vendor`
-          }
-          else {
-            const target = Object.entries(subpackageModules)
-            for (const [subpackage, modules] of target) {
-              if (modules.size) {
-                const found = Array.from(modules).some((tempId) => {
-                  const tempModuleInfo = meta.getModuleInfo(tempId)
-                  if (tempModuleInfo.importedIds.some(item => item.includes(id))) {
-                    // console.log('+', tempId)
-                    addToSubpackageModules(subpackage, moduleIdProcessor(id)) // 模块引入子包记录
-                    return true
-                  }
-                  return false
-                })
-                if (found) {
-                  return `${subpackage}common/vendor`
-                }
+            else {
+              const result = PackageModulesInstance.processModule(moduleInfo)
+              if (result?.[0]) {
+                return `${result[0]}common/vendor`
               }
             }
           }
