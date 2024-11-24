@@ -160,7 +160,7 @@ export function UniappSubPackagesOptimization(): Plugin {
            */
           const isCommonjsHelpers = id.includes('commonjsHelpers.js')
 
-          if (isCommonjsHelpers) {
+          if (!isCommonjsHelpers) {
             if (((matchSubPackages.size === 1 && !hasNoSubPackage(importers))
               || (matchSubpackage && hasNodeModules(importers) // 再次确定此模块来自`node_modules`
               ))
