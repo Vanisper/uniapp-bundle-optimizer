@@ -13,6 +13,8 @@ import { calculateRelativePath, hasExtension, moduleIdProcessor, parseAsyncImpor
  */
 export function AsyncImportProcessor(): Plugin {
   const platform = process.env.UNI_PLATFORM
+  /** 是否小程序 */
+  const isMP = platform.startsWith('mp')
 
   return {
     name: 'async-import-processor',
@@ -83,7 +85,7 @@ export function AsyncImportProcessor(): Plugin {
 
                 if (matchResult) {
                   let rewrittenUrl: string | undefined
-                  if (!platform.startsWith('mp')) {
+                  if (!isMP) {
                     // `assets` 前缀转换为 `./` | TODO: 考虑一下`assets`关键字从配置文件中读取，`assets`只是默认的产物编译路径前缀
                     rewrittenUrl = JSON.stringify(resolveAssetsPath(matchResult[1]))
                   }
@@ -93,6 +95,8 @@ export function AsyncImportProcessor(): Plugin {
                   }
                   // console.log({ urlValue: value, rewrittenUrl, old: code.substring(start, end) })
                   rewrittenUrl && magicString.overwrite(start, end, rewrittenUrl, { contentOnly: true })
+                  // 替换 `AsyncImport` 关键字为 `import` | `require.async`
+                  magicString.overwrite(full.start, full.start + 'AsyncImport'.length, isMP ? 'require.async' : 'import', { contentOnly: true })
                 }
               })
             })

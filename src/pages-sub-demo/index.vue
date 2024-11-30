@@ -21,7 +21,7 @@ onMounted(async () => {
     // console.log(error)
   }
 
-  AsyncImport('@/pages-sub-async/async-plugin/index').then((res) => {
+  await AsyncImport('@/pages-sub-async/async-plugin/index').then((res) => {
     console.log(res?.AsyncPlugin())
   })
   // 小程序端如此异步引入组件是没有作用的，小程序端有自己的异步引入组件的方式
