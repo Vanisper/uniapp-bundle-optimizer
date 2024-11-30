@@ -5,9 +5,9 @@ import Components from '@uni-helper/vite-plugin-uni-components'
 import { WotResolver } from '@uni-helper/vite-plugin-uni-components/resolvers'
 import { defineConfig } from 'vite'
 
-import Optimization from './plugins/uniapp-subpackages-optimization'
+import Optimization, { type IOptimizationOptions } from './plugins/uniapp-subpackages-optimization'
 
-export default defineConfig(async () => {
+export default defineConfig(async ({ mode, command }) => {
   const UnoCSS = (await import('unocss/vite')).default
 
   return {
@@ -19,7 +19,7 @@ export default defineConfig(async () => {
     },
     plugins: [
       // TODO: 开启此插件能实现分包优化
-      Optimization(),
+      Optimization({ mode: mode as IOptimizationOptions['mode'], command }),
       uni(),
       UnoCSS(),
       Components({

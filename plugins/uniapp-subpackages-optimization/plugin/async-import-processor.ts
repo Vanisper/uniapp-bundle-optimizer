@@ -1,5 +1,6 @@
 /* eslint-disable unused-imports/no-unused-vars */
 import type { Plugin } from 'vite'
+import type { IOptimizationOptions } from '../type'
 import process from 'node:process'
 import MagicString from 'magic-string'
 import { JS_TYPES_RE } from '../../constants'
@@ -11,7 +12,7 @@ import { calculateRelativePath, hasExtension, moduleIdProcessor, parseAsyncImpor
  * @description `transform`阶段处理`AsyncImport()`函数的路径传参，将别名路径转换为真实路径
  * @description `generateBundle`阶段处理`AsyncImport()`函数的路径传参，进一步将路径转换为生产环境的路径（hash化的路径）
  */
-export function AsyncImportProcessor(): Plugin {
+export function AsyncImportProcessor(options: IOptimizationOptions): Plugin {
   const platform = process.env.UNI_PLATFORM
   /** 是否小程序 */
   const isMP = platform.startsWith('mp')
@@ -28,15 +29,21 @@ export function AsyncImportProcessor(): Plugin {
       if (asyncImports.length > 0) {
         asyncImports.forEach(({ full, args }) => {
           args.forEach(({ start, end, value }) => {
-            const url = value.toString()
-            let normalizedPath = resolveAliasPath(url, true)
-            // 把 `src` 目录下的文件路径转换为相对于根目录的路径
-            normalizedPath = resolveSrcPath(normalizedPath)
+            // h5 下的开发模式
+            if (!isMP && options.command === 'serve' && options.mode === 'development') {
+              magicString.overwrite(full.start, full.start + 'AsyncImport'.length, 'import', { contentOnly: true })
+            }
+            else {
+              const url = value.toString()
+              let normalizedPath = resolveAliasPath(url, true)
+              // 把 `src` 目录下的文件路径转换为相对于根目录的路径
+              normalizedPath = resolveSrcPath(normalizedPath)
 
-            // 将别名路径转换为真实路径
-            const rewrittenUrl = JSON.stringify(normalizedPath)
-            // console.log({ url: value, rewrittenUrl, code: code.substring(start, end) })
-            magicString.overwrite(start, end, rewrittenUrl, { contentOnly: true })
+              // 将别名路径转换为真实路径
+              const rewrittenUrl = JSON.stringify(normalizedPath)
+              // console.log({ url: value, rewrittenUrl, code: code.substring(start, end) })
+              magicString.overwrite(start, end, rewrittenUrl, { contentOnly: true })
+            }
           })
         })
       }

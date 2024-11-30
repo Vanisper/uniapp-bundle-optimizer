@@ -40,9 +40,9 @@ if (typeof globalThis._globalMethods === 'undefined') {
 
       const methodCode = typeof targetMethodBody === 'string'
         ? `function() { ${targetMethodBody} }`
-        : normalizeFunctionSyntax(targetMethodBody.toString(), true)
+        : typeof targetMethodBody === 'function' ? normalizeFunctionSyntax(targetMethodBody.toString(), true) : ''
 
-      return `
+      return methodCode && `
   if (typeof globalThis.${methodName} === 'undefined') {
     globalThis.${methodName} = ${methodCode};
   }
@@ -55,7 +55,10 @@ if (typeof globalThis._globalMethods === 'undefined') {
   const generateTypesCode = `export {}
 
 declare global {${Object.entries(methods).map(([methodName, methodBody]) => {
-    const methodInterface = Array.isArray(methodBody) ? methodBody[1] : {}
+    const methodInterface = Array.isArray(methodBody)
+      ? methodBody[1]
+      : (typeof methodBody === 'string' || typeof methodBody === 'function') ? {} : methodBody
+
     return `
   ${generateFunctionType(methodName, methodInterface)}`
   },
@@ -106,6 +109,7 @@ interface GlobalMethodMap {
   [methodName: string]: string | Function
     | [string | Function]
     | [string | Function, FunctionInterface]
+    | FunctionInterface // 仅仅生成类型声明
 }
 
 export type GlobalMethod = GlobalMethodMap
