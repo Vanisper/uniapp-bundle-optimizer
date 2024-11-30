@@ -21,3 +21,5 @@ dist
 *.sw?
 
 archive*
+
+global-method.d.ts

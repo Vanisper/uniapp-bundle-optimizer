@@ -30,6 +30,7 @@
   "include": [
     "src/*.d.ts",
     "components.d.ts",
+    "global-method.d.ts",
     "src/**/*.ts",
     "src/**/*.tsx",
     "src/**/*.jsx",
