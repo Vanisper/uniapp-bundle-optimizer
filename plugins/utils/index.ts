@@ -1,7 +1,83 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import { ASSETS_DIR_RE, EXT_RE, ROOT_DIR, SRC_DIR_RE } from '../constants'
+
+/** 替换字符串指定位置的字符 */
 export function replaceStringAtPosition(originalStr: string, start: number, end: number, replaceWith: string) {
   return originalStr.substring(0, start) + replaceWith + originalStr.substring(end)
 }
 
-export function normalizePath(id: string) {
-  return exports.isWindows ? id.replace(/\\/g, '/') : id
+/** 转换为斜杠路径 */
+export function slash(p: string): string {
+  return p.replace(/\\/g, '/')
 }
+
+/** 规范路径 ｜ 处理路径斜杠 */
+export function normalizePath(id: string) {
+  return exports.isWindows ? slash(id) : id
+}
+
+/** 规范函数语法 */
+export function normalizeFunctionSyntax(funcStr: string, anonymous = false): string {
+  return funcStr.replace(/^\s*(async\s+)?(function\s+)?([\w$]+)\s*\(/, (match, asyncKeyword, funcKeyword, funcName) => {
+    return !anonymous && funcName && !['function', 'async'].includes(funcName)
+      ? `${asyncKeyword || ''}function ${funcName}(`
+      : `${asyncKeyword || ''}${funcName === 'async' ? padEndStringSpaces(funcName, 1) : 'function'}(`
+  })
+}
+
+/**
+ * 字符串末尾填充空格
+ * @param str 待处理字符串
+ * @param count 填充数量 ｜ 默认 0
+ * @returns 处理后的字符串 ｜ 兜底处理成空字符串
+ */
+export function padEndStringSpaces(str: string | undefined, count = 0) {
+  str = str?.toString()
+  return str?.padEnd(str?.length + count) || ''
+}
+
+/** 检查并创建目录 */
+export function ensureDirectoryExists(filePath: string) {
+  const dir = path.dirname(filePath)
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true })
+  }
+}
+
+/** 路径处理器 | 去除`rootDir`前缀路径和查询参数 | `rootDir`默认为项目根目录 */
+export function moduleIdProcessor(id: string, rootDir = ROOT_DIR) {
+  rootDir = normalizePath(rootDir)
+  // 确保 rootDir 以斜杠结尾
+  if (!rootDir.endsWith('/'))
+    rootDir += '/'
+
+  const normalized = normalizePath(id)
+  const name = normalized.split('?')[0]
+  // 从name中剔除 rootDir 前缀
+  const updatedName = name.replace(rootDir, '')
+
+  // 去除来自`node_modules`模块的前缀
+  if (updatedName.startsWith('\x00'))
+    return updatedName.slice(1)
+
+  return updatedName
+}
+
+/** 处理 src 前缀的路径 */
+export function resolveSrcPath(id: string) {
+  return id.replace(SRC_DIR_RE, './')
+}
+
+/** 处理 assets 前缀的路径 */
+export function resolveAssetsPath(id: string) {
+  return id.replace(ASSETS_DIR_RE, './')
+}
+
+/** 判断是否有后缀 */
+export function hasExtension(id: string) {
+  return EXT_RE.test(id)
+}
+
+export * from './getTsConfigPaths'
+export * from './lex-parse'
