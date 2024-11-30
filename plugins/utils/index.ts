@@ -64,6 +64,20 @@ export function moduleIdProcessor(id: string, rootDir = ROOT_DIR) {
   return updatedName
 }
 
+/**
+ * 计算相对路径的调用层级
+ * @param importer 引入者文件的路径
+ * @param imported 被引入文件的路径
+ * @returns 相对路径前缀
+ */
+export function calculateRelativePath(importer: string, imported: string): string {
+  // 获取相对路径
+  const relativePath = path.relative(path.dirname(importer), imported)
+
+  // 将路径中的反斜杠替换为正斜杠（适用于 Windows 系统）
+  return relativePath.replace(/\\/g, '/')
+}
+
 /** 处理 src 前缀的路径 */
 export function resolveSrcPath(id: string) {
   return id.replace(SRC_DIR_RE, './')

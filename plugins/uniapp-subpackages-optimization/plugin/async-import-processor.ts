@@ -1,8 +1,9 @@
 /* eslint-disable unused-imports/no-unused-vars */
 import type { Plugin } from 'vite'
+import process from 'node:process'
 import MagicString from 'magic-string'
 import { JS_TYPES_RE } from '../../constants'
-import { hasExtension, moduleIdProcessor, parseAsyncImports, resolveAliasPath, resolveAssetsPath, resolveSrcPath } from '../../utils'
+import { calculateRelativePath, hasExtension, moduleIdProcessor, parseAsyncImports, resolveAliasPath, resolveAssetsPath, resolveSrcPath } from '../../utils'
 
 /**
  * 负责处理`AsyncImport`函数调用的传参路径
@@ -11,6 +12,8 @@ import { hasExtension, moduleIdProcessor, parseAsyncImports, resolveAliasPath, r
  * @description `generateBundle`阶段处理`AsyncImport()`函数的路径传参，进一步将路径转换为生产环境的路径（hash化的路径）
  */
 export function AsyncImportProcessor(): Plugin {
+  const platform = process.env.UNI_PLATFORM
+
   return {
     name: 'async-import-processor',
     enforce: 'post', // 插件执行时机，在其他处理后执行
@@ -42,12 +45,24 @@ export function AsyncImportProcessor(): Plugin {
       }
     },
     generateBundle({ format }, bundle) {
-      if (format !== 'es')
+      // 小程序端为cjs
+      if (!['es', 'cjs'].includes(format))
         return
 
       const hashFileMap = Object.entries(bundle).reduce((acc, [file, chunk]) => {
-        if (chunk.type === 'chunk' && chunk.facadeModuleId)
-          acc[moduleIdProcessor(chunk.facadeModuleId)] = chunk.fileName
+        if (chunk.type === 'chunk') {
+          let moduleId = chunk.facadeModuleId
+
+          if (moduleId?.startsWith('uniPage://') || moduleId?.startsWith('uniComponent://')) {
+            const moduleIds = chunk.moduleIds.filter(id => id !== moduleId).map(id => moduleIdProcessor(id))
+            if (moduleIds.length >= 1 && moduleIds.length < chunk.moduleIds.length) {
+              moduleId = moduleIds.at(-1)
+            }
+          }
+
+          moduleId && (acc[moduleIdProcessor(moduleId)] = chunk.fileName)
+        }
+
         return acc
       }, {} as Record<string, string>)
 
@@ -67,11 +82,17 @@ export function AsyncImportProcessor(): Plugin {
                 const matchResult = matchRecord(hashFileMap, tempUrl)
 
                 if (matchResult) {
-                  // `assets` 前缀转换为 `./` | TODO: 考虑一下`assets`关键字从配置文件中读取，`assets`只是默认的产物编译路径前缀
-                  const rewrittenUrl = JSON.stringify(resolveAssetsPath(matchResult[1]))
+                  let rewrittenUrl: string | undefined
+                  if (!platform.startsWith('mp')) {
+                    // `assets` 前缀转换为 `./` | TODO: 考虑一下`assets`关键字从配置文件中读取，`assets`只是默认的产物编译路径前缀
+                    rewrittenUrl = JSON.stringify(resolveAssetsPath(matchResult[1]))
+                  }
+                  else {
+                    // 小程序
+                    rewrittenUrl = JSON.stringify(calculateRelativePath(chunk.fileName, matchResult[1]))
+                  }
                   // console.log({ urlValue: value, rewrittenUrl, old: code.substring(start, end) })
-
-                  magicString.overwrite(start, end, rewrittenUrl, { contentOnly: true })
+                  rewrittenUrl && magicString.overwrite(start, end, rewrittenUrl, { contentOnly: true })
                 }
               })
             })
