@@ -64,6 +64,7 @@
     "@uni-helper/uni-use": "^0.19.14",
     "@vueuse/core": "9.13.0",
     "lodash": "^4.17.21",
+    "lodash-es": "^4.17.21",
     "pinia": "^2.2.2",
     "vue": "3.4.21",
     "vue-i18n": "9.6.2",
@@ -77,6 +78,8 @@
     "@dcloudio/vite-plugin-uni": "3.0.0-4020820240925001",
     "@iconify-json/carbon": "^1.2.1",
     "@mini-types/alipay": "^3.0.14",
+    "@node-rs/xxhash": "^1.7.4",
+    "@types/lodash-es": "^4.17.12",
     "@types/node": "^22.5.5",
     "@uni-helper/eslint-config": "^0.2.0",
     "@uni-helper/uni-types": "^1.0.0-alpha.4",
@@ -84,18 +87,15 @@
     "@uni-helper/vite-plugin-uni-components": "^0.1.0",
     "@vue/runtime-core": "3.4.21",
     "@vue/tsconfig": "^0.5.1",
+    "es-module-lexer": "^1.5.4",
     "eslint": "^9.11.0",
+    "minimatch": "^10.0.1",
     "miniprogram-api-typings": "^3.12.3",
     "sass": "1.64.2",
     "typescript": "^5.6.2",
     "unocss": "^0.62.4",
     "vite": "5.2.8",
-    "vue-tsc": "^2.1.6"
-  },
-  "pnpm": {
-    "patchedDependencies": {
-      "@dcloudio/uni-mp-vite@3.0.0-4020820240925001": "patches/@dcloudio__uni-mp-vite@3.0.0-4020820240925001.patch",
-      "@dcloudio/uni-cli-shared@3.0.0-4020820240925001": "patches/@dcloudio__uni-cli-shared@3.0.0-4020820240925001.patch"
-    }
+    "vue-tsc": "^2.1.6",
+    "xxhash": "^0.3.0"
   }
 }
