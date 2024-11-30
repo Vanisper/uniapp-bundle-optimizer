@@ -5,7 +5,7 @@ import Components from '@uni-helper/vite-plugin-uni-components'
 import { WotResolver } from '@uni-helper/vite-plugin-uni-components/resolvers'
 import { defineConfig } from 'vite'
 
-import Optimization from './plugins/UniappSubPackagesOptimization'
+import Optimization from './plugins/uniapp-subpackages-optimization'
 
 export default defineConfig(async () => {
   const UnoCSS = (await import('unocss/vite')).default
