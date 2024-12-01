@@ -11,7 +11,7 @@ export default (options: IOptimizationOptions) => {
         // TODO: 在类型生成方面是否可以有更好的解决方案？
         {
           paramsType: 'string',
-          returnType: 'Promise<T | any>',
+          returnType: 'Promise<any>',
         },
       },
       // 只匹配 src 目录下的文件
