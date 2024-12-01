@@ -20,7 +20,16 @@ onMounted(async () => {
   catch (error) {
     // console.log(error)
   }
-
+  // TODO: 实现一个vite插件，AsyncImport写入传参的时候，生成类型
+  // 定义模块类型映射
+  // type ModuleMap = {
+  //   '@/pages-sub-async/async-plugin/index': typeof import('@/pages-sub-async/async-plugin/index'),
+  //   // 添加更多模块映射
+  // };
+  // declare global {
+  //   function AsyncImport<T extends keyof ModuleMap>(arg: T): Promise<ModuleMap[T]>;
+  // }
+  // 如此实现良好的类型提示
   await AsyncImport('@/pages-sub-async/async-plugin/index').then((res) => {
     console.log(res?.AsyncPlugin())
   })
