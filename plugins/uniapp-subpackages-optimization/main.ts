@@ -181,6 +181,10 @@ export function UniappSubPackagesOptimization(): Plugin {
         },
       }
     },
+    buildStart() {
+      // 每次新的打包时，清空`模块记录`，主要避免热更新时上次构建时的`模块记录`导致热更新构建混乱
+      PackageModulesInstance.clearModuleRecord()
+    },
   }
 }
 

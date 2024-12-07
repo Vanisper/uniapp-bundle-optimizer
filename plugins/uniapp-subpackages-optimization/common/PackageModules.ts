@@ -10,14 +10,14 @@ export class PackageModules {
    *
    * @description 记录一个包中引入的模块信息
    */
-  public modulesRecord: { [packageId: string]: { [moduleId: string]: ModuleInfo } } = {}
+  private modulesRecord: { [packageId: string]: { [moduleId: string]: ModuleInfo } } = {}
 
   public chunkMeta: null | ManualChunkMeta = null
 
   moduleIdProcessor?: (moduleId: string) => string
 
   constructor(moduleIdProcessor?: typeof this.moduleIdProcessor) {
-    this.moduleIdProcessor = moduleIdProcessor
+    this.moduleIdProcessor = moduleIdProcessor || (id => id)
   }
 
   static isCommonJsModule(moduleInfo: ModuleInfo) {
@@ -32,7 +32,7 @@ export class PackageModules {
     if (!moduleId)
       return
 
-    moduleId = this.moduleIdProcessor ? this.moduleIdProcessor(moduleId) : moduleId
+    moduleId = this.moduleIdProcessor(moduleId)
 
     if (!moduleId)
       return
@@ -45,6 +45,13 @@ export class PackageModules {
   }
 
   /**
+   * clear module record
+   */
+  public clearModuleRecord() {
+    return this.modulesRecord = {}
+  }
+
+  /**
    * find module record in `importers`
    * @param importers 模块引入者列表 | 哪些模块引入了该模块之意
    * @param moduleIdProcessor 模块id处理器 - 可选
@@ -54,10 +61,8 @@ export class PackageModules {
   public findModuleInImporters(importers: readonly string[], moduleIdProcessor?: typeof this.moduleIdProcessor | null) {
     return importers.reduce((pkgs, importerId) => {
       for (const packageId in this.modulesRecord) {
-        // moduleIdProcessor 为null时，就是用null，否则就是用 moduleIdProcessor || this.moduleIdProcessor
-        const _moduleIdProcessor = (moduleIdProcessor === null) ? null : (moduleIdProcessor || this.moduleIdProcessor)
-        const moduleId = _moduleIdProcessor ? _moduleIdProcessor(importerId) : importerId
-        // console.log(moduleId)
+        const _moduleIdProcessor = moduleIdProcessor || this.moduleIdProcessor
+        const moduleId = _moduleIdProcessor(importerId)
 
         if (this.modulesRecord[packageId][moduleId]) {
           // 说明这个`包`的某个依赖引入了这个`模块`，记录下来
