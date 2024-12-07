@@ -1,0 +1,1 @@
+import{c as s,w as o,i as a,o as e,b as l}from"./index-CPXMJqD1.js";import{_ as t}from"./_plugin-vue_export-helper.BCo6x5W8.js";void 0===globalThis._globalMethods&&(globalThis._globalMethods={});const r=t({},[["render",function(t,r){const n=a;return e(),s(n,null,{default:o((()=>[l("pages-sub-async")])),_:1})}]]);export{r as default};
