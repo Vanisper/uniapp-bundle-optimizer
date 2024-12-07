@@ -10,7 +10,5 @@ declare module 'vue' {
     AppFooter: typeof import('./src/components/AppFooter.vue')['default']
     AppLogos: typeof import('./src/components/AppLogos.vue')['default']
     InputEntry: typeof import('./src/components/InputEntry.vue')['default']
-    WdButton: typeof import('wot-design-uni/components/wd-button/wd-button.vue')['default']
-    WdPopup: typeof import('wot-design-uni/components/wd-popup/wd-popup.vue')['default']
   }
 }

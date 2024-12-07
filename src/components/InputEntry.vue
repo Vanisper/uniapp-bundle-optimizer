@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import WdButton from 'wot-design-uni/components/wd-button/wd-button.vue'
+import WdPopup from 'wot-design-uni/components/wd-popup/wd-popup.vue'
 
 const name = ref('')
 const popupShow = ref(false)
