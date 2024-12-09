@@ -5,7 +5,7 @@ import AsyncComponentDemo from '@/pages-sub-async/async-component/index.vue?asyn
 // import { groupBy } from 'lodash' // 这种全量引入到子包中
 // import _ from 'lodash' // 主包会触发 `getDefaultExportFromCjs` 方法的生成，其他表现与上面的引入方式一致
 
-import groupBy from 'lodash/groupBy' // 按需引入，但是当前`groupBy`内部引入的依赖会被引入到主包中，TODO: 目前需要优化的地方
+import groupBy from 'lodash/groupBy' // 按需引入，但是当前`groupBy`内部引入的依赖会被引入到主包中，
 // import groupBy from 'lodash-es/groupBy'
 import { defineComponent, onMounted, ref } from 'vue'
 
