@@ -11,5 +11,6 @@
 * [ ] 插件化：实现中，见 [plugins/uniapp-subpackages-optimization](./plugins/uniapp-subpackages-optimization/index.ts) 目录，使用方法与其他vite插件一样，在 `vite.config.ts` 中引入即可（注意 [plugins/utils](./plugins/utils/index.ts) 中的相关被使用的方法）。
     * [X] 分包优化
     * [X] 模块异步跨包调用
-    * [ ] 组件异步跨包引用
+    * [X] 组件异步跨包引用
+    * [ ] 优化自定义语法的ts类型提示，以及热更新导致的一些问题
 * [ ] `插件化` 的成果独立分支，发布到 `npm` 市场
