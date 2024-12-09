@@ -2,6 +2,9 @@ import process from 'node:process'
 
 export const JS_TYPES_RE = /\.(?:j|t)sx?$|\.mjs$/
 
+export const knownJsSrcRE
+  = /\.(?:[jt]sx?|m[jt]s|vue|marko|svelte|astro|imba|mdx)(?:$|\?)/
+
 export const CSS_LANGS_RE
   = /\.(css|less|sass|scss|styl|stylus|pcss|postcss|sss)(?:$|\?)/
 

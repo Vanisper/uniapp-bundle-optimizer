@@ -5,3 +5,5 @@ export function parseAsyncImports(source: string) {
 }
 
 export * from './parse_arguments'
+export * from './parse_import'
+export * from './type.d'

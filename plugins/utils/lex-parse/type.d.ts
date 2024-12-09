@@ -15,3 +15,17 @@ export interface FunctionCall {
   full: FullMatchLocation
   args: ArgumentLocation[]
 }
+
+/** 解析 `import xxx from 'yyy?query1&query2'` 的导入形式，返回定位信息 */
+export interface ImportDefaultWithQuery {
+  /** import xxx from 'yyy?query1&query2' */
+  full: FullMatchLocation
+  /** xxx */
+  defaultVariable: ArgumentLocation
+  /** yyy */
+  modulePath: ArgumentLocation
+  /** ?query1&query2 */
+  query: ArgumentLocation[]
+  /** 完整路径信息 */
+  fullPath: ArgumentLocation
+}

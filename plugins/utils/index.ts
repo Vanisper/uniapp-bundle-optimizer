@@ -93,5 +93,32 @@ export function hasExtension(id: string) {
   return EXT_RE.test(id)
 }
 
+/** 短横线命名法 */
+export function kebabCase(key: string) {
+  if (!key)
+    return key
+
+  const result = key.replace(/([A-Z])/g, ' $1').trim()
+  return result.split(' ').join('-').toLowerCase()
+}
+
+/** 查找第一个不连续的数字 */
+export function findFirstNonConsecutive(arr: number[]): number | null {
+  if (arr.length < 2)
+    return null // 如果数组长度小于2，直接返回null
+
+  const result = arr.find((value, index) => index > 0 && value !== arr[index - 1] + 1)
+  return result !== undefined ? result : null
+}
+
+/** 查找第一个不连续的数字之前的数字 */
+export function findFirstNonConsecutiveBefore(arr: number[]): number | null {
+  if (arr.length < 2)
+    return null // 如果数组长度小于2，直接返回null
+
+  const result = arr.find((value, index) => index > 0 && value !== arr[index - 1] + 1)
+  return (result !== undefined && result !== null) ? arr[arr.indexOf(result) - 1] : null
+}
+
 export * from './getTsConfigPaths'
 export * from './lex-parse'

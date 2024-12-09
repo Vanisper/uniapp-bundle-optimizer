@@ -1,6 +1,7 @@
+<!-- eslint-disable unused-imports/no-unused-vars -->
 <!-- eslint-disable no-console -->
 <script lang="ts" setup>
-import AsyncComponentDemo from '@/pages-sub-async/async-component/index.vue'
+import AsyncComponentDemo from '@/pages-sub-async/async-component/index.vue?async'
 // import { groupBy } from 'lodash' // 这种全量引入到子包中
 // import _ from 'lodash' // 主包会触发 `getDefaultExportFromCjs` 方法的生成，其他表现与上面的引入方式一致
 
@@ -37,17 +38,6 @@ onMounted(async () => {
   AsyncImport('@/pages-sub-async/index.vue').then((res) => {
     console.log(res.default || res)
   })
-})
-</script>
-
-<script lang="ts">
-export default defineComponent({
-  components: {
-    AsyncComponentDemo,
-  },
-  asyncCustomComponents: {
-    AsyncComponentDemo: '../pages-sub-async/async-component/index',
-  },
 })
 </script>
 
