@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import process from 'node:process'
 import { ASSETS_DIR_RE, EXT_RE, ROOT_DIR, SRC_DIR_RE } from '../constants'
 
 /** 替换字符串指定位置的字符 */
@@ -14,7 +15,7 @@ export function slash(p: string): string {
 
 /** 规范路径 ｜ 处理路径斜杠 */
 export function normalizePath(id: string) {
-  return exports.isWindows ? slash(id) : id
+  return process.platform === 'win32' ? slash(id) : id
 }
 
 /** 规范函数语法 */
