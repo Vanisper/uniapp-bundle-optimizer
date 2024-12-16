@@ -1,9 +1,12 @@
 /* eslint-disable unused-imports/no-unused-vars */
 import type { Plugin } from 'vite'
+import fs from 'node:fs'
+import path from 'node:path'
 import process from 'node:process'
 import { normalizeMiniProgramFilename, removeExt } from '@dcloudio/uni-cli-shared'
 import MagicString from 'magic-string'
-import { type ArgumentLocation, calculateRelativePath, findFirstNonConsecutiveBefore, kebabCase, lexDefaultImportWithQuery, resolveAliasPath, resolveSrcPath } from '../../utils'
+import { ROOT_DIR } from '../../constants'
+import { type ArgumentLocation, calculateRelativePath, ensureDirectoryExists, findFirstNonConsecutiveBefore, kebabCase, lexDefaultImportWithQuery, resolveAliasPath, resolveSrcPath } from '../../utils'
 import { AsyncComponents, type TemplateDescriptor } from '../common/AsyncComponents'
 
 /**
@@ -30,6 +33,13 @@ export function AsyncComponentProcessor(): Plugin {
       if (!importer.split('?')[0].endsWith('.vue') || parseResult.length === 0 || !parseResult.some(({ query }) => query.some(({ value }) => value.toString().trim() === 'async'))) {
         return
       }
+
+      // #region 提取引入路径数组，生成类型定义文件
+      const typeDefinition = generateModuleDeclaration(parseResult)
+      const typesFilePath = path.resolve(ROOT_DIR, 'async-component.d.ts')
+      ensureDirectoryExists(typesFilePath)
+      fs.writeFileSync(typesFilePath, typeDefinition)
+      // #endregion
 
       const filename = removeExt(normalizeMiniProgramFilename(importer, inputDir))
 
@@ -126,4 +136,24 @@ export function AsyncComponentProcessor(): Plugin {
       AsyncComponentsInstance.scriptDescriptors.clear()
     },
   }
+}
+
+/**
+ * 生成类型定义
+ */
+function generateModuleDeclaration(parsedResults: ReturnType<typeof lexDefaultImportWithQuery>): string {
+  let typeDefs = ''
+
+  parsedResults.forEach((result) => {
+    const modulePath = result.modulePath.value // 模块路径
+    const fullPath = result.fullPath.value
+
+    // 生成 declare module 语句
+    typeDefs += `declare module '${fullPath}' {\n`
+    typeDefs += `  const component: typeof import('${modulePath}')\n`
+    typeDefs += `  export = component\n`
+    typeDefs += `}\n`
+  })
+
+  return typeDefs
 }

@@ -23,3 +23,4 @@ dist
 archive*
 
 async-import.d.ts
+async-component.d.ts
