@@ -1,11 +1,12 @@
 /* eslint-disable unused-imports/no-unused-vars */
+import type { OutputChunk } from 'rollup'
 import type { Plugin } from 'vite'
 import type { IOptimizationOptions } from '../type'
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import MagicString from 'magic-string'
-import { JS_TYPES_RE, ROOT_DIR } from '../../constants'
+import { EXT_RE, JS_TYPES_RE, ROOT_DIR, SRC_DIR_RE } from '../../constants'
 import { calculateRelativePath, ensureDirectoryExists, hasExtension, moduleIdProcessor, parseAsyncImports, resolveAliasPath, resolveAssetsPath, resolveSrcPath } from '../../utils'
 
 /**
@@ -68,6 +69,9 @@ export function AsyncImportProcessor(options: IOptimizationOptions): Plugin {
       if (!['es', 'cjs'].includes(format))
         return
 
+      // 页面被当作组件引入了，这是允许的，但是表现不一样，此处缓存记录
+      const pageComponents: Record<string, { code: string, alias: string[] }> = {}
+
       const hashFileMap = Object.entries(bundle).reduce((acc, [file, chunk]) => {
         if (chunk.type === 'chunk') {
           let moduleId = chunk.facadeModuleId
@@ -77,13 +81,42 @@ export function AsyncImportProcessor(options: IOptimizationOptions): Plugin {
             if (moduleIds.length >= 1 && moduleIds.length < chunk.moduleIds.length) {
               moduleId = moduleIds.at(-1)
             }
+            else if (!moduleIds.length && chunk.fileName) {
+              // TODO: 暂时发现页面被当作组件引入的时候，其code是一致的，所以此处以此为判断依据，可能判断依据不准确
+              const index = Object.values(pageComponents).findIndex(item => item.code === chunk?.code)
+              if (index !== -1) {
+                const target = pageComponents[Object.keys(pageComponents)[index]]
+                target.alias.push(chunk.fileName)
+              }
+              else {
+                pageComponents[chunk.fileName] = { code: chunk.code, alias: [] }
+              }
+              return acc
+            }
           }
 
           moduleId && (acc[moduleIdProcessor(moduleId)] = chunk.fileName)
         }
 
         return acc
-      }, {} as Record<string, string>)
+      }, {} as Record<string, string | string[]>)
+
+      if (Object.keys(pageComponents).length) {
+        const temp = Object.values(bundle).filter(chunk => chunk.type === 'chunk' && chunk.facadeModuleId === null
+          && chunk.moduleIds.length === 1 && chunk.moduleIds.length === Object.keys(chunk.modules).length
+          && chunk.moduleIds[0] === Object.keys(chunk.modules)[0]) as OutputChunk[]
+
+        temp.forEach((chunk) => {
+          const moduleId = chunk.moduleIds[0]
+          const fileName = moduleIdProcessor(moduleId)
+          if (fileName.startsWith('src/')) {
+            const target = Object.keys(pageComponents).find(key => key.replace(EXT_RE, '') === fileName.replace(EXT_RE, '').replace(SRC_DIR_RE, ''))
+            if (target) {
+              hashFileMap[fileName] = [target, ...pageComponents[target].alias]
+            }
+          }
+        })
+      }
 
       for (const file in bundle) {
         const chunk = bundle[file]
@@ -126,18 +159,20 @@ export function AsyncImportProcessor(options: IOptimizationOptions): Plugin {
   }
 }
 
-function matchRecord(record: Record<string, string>, id: string): [string, string] | undefined {
+function matchRecord(record: Record<string, string | string[]>, id: string): [string, string] | undefined {
   for (const key in record) {
+    const value = record[key]
+    const result = Array.isArray(value) ? value[0] : value
     // 处理js/ts文件 ｜ 没有后缀，则认为是 js/ts/mjs 文件
     if ((!hasExtension(id) || JS_TYPES_RE.test(id)) && JS_TYPES_RE.test(key)) {
       // 去除key的后缀
       const keyWithoutExt = key.replace(JS_TYPES_RE, '')
       if (keyWithoutExt.endsWith(id.replace(JS_TYPES_RE, ''))) {
-        return [key, record[key]]
+        return [key, result]
       }
     }
     else if (key.endsWith(id)) {
-      return [key, record[key]]
+      return [key, result]
     }
   }
 }
