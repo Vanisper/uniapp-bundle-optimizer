@@ -6,7 +6,7 @@ import process from 'node:process'
 import { normalizeMiniProgramFilename, removeExt } from '@dcloudio/uni-cli-shared'
 import MagicString from 'magic-string'
 import { ROOT_DIR } from '../../constants'
-import { type ArgumentLocation, calculateRelativePath, ensureDirectoryExists, findFirstNonConsecutiveBefore, kebabCase, lexDefaultImportWithQuery, resolveAliasPath, resolveSrcPath } from '../../utils'
+import { type ArgumentLocation, calculateRelativePath, ensureDirectoryExists, findFirstNonConsecutiveBefore, kebabCase, lexDefaultImportWithQuery, lexFunctionCalls, resolveAliasPath, resolveSrcPath } from '../../utils'
 import { AsyncComponents, type TemplateDescriptor } from '../common/AsyncComponents'
 
 /**
@@ -35,9 +35,14 @@ export function AsyncComponentProcessor(): Plugin {
       }
 
       // #region 提取引入路径数组，生成类型定义文件
-      const typeDefinition = generateModuleDeclaration(parseResult)
       const typesFilePath = path.resolve(ROOT_DIR, 'async-component.d.ts')
       ensureDirectoryExists(typesFilePath)
+      let cache: string[] = [] // 缓存已经生成的类型定义，防止开发阶段热更新时部分类型定义生成丢失
+      if (fs.existsSync(typesFilePath)) {
+        const list = lexFunctionCalls(fs.readFileSync(typesFilePath, 'utf-8'), 'import').flatMap(({ args }) => args.map(({ value }) => value.toString()))
+        list && list.length && (cache = Array.from(new Set(list)))
+      }
+      const typeDefinition = generateModuleDeclaration(parseResult, cache)
       fs.writeFileSync(typesFilePath, typeDefinition)
       // #endregion
 
@@ -150,19 +155,31 @@ export function AsyncComponentProcessor(): Plugin {
 /**
  * 生成类型定义
  */
-function generateModuleDeclaration(parsedResults: ReturnType<typeof lexDefaultImportWithQuery>): string {
+function generateModuleDeclaration(parsedResults: ReturnType<typeof lexDefaultImportWithQuery>, cache?: string[]): string {
   let typeDefs = ''
 
-  parsedResults.forEach((result) => {
-    const modulePath = result.modulePath.value // 模块路径
-    const fullPath = result.fullPath.value
-
-    // 生成 declare module 语句
+  // 生成 declare module 语句
+  function generateDeclareModule(modulePath: string | number, fullPath: string | number) {
     typeDefs += `declare module '${fullPath}' {\n`
     typeDefs += `  const component: typeof import('${modulePath}')\n`
     typeDefs += `  export = component\n`
     typeDefs += `}\n`
+  }
+
+  cache.forEach((item) => {
+    const modulePath = item // 模块路径
+    const fullPath = `${modulePath}?async`
+
+    generateDeclareModule(modulePath, fullPath)
   })
+
+  parsedResults.filter(item => !cache.includes(item.modulePath.value.toString()))
+    .forEach((result) => {
+      const modulePath = result.modulePath.value // 模块路径
+      const fullPath = result.fullPath.value
+
+      generateDeclareModule(modulePath, fullPath)
+    })
 
   return typeDefs
 }
