@@ -12,6 +12,8 @@ export interface TemplateDescriptor {
 export class AsyncComponents {
   scriptDescriptors: Map<string, TemplateDescriptor> = new Map()
   jsonAsyncComponentsCache: Map<string, BindingAsyncComponents> = new Map()
+  /** 当前状态下热更新时会导致把原有的json内容清除，操作过的page-json需要记录之前的内容 */
+  pageJsonCache: Map<string, Record<string, Record<string, string>>> = new Map()
 
   constructor() {}
 

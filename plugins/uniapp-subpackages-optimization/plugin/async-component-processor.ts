@@ -112,20 +112,29 @@ export function AsyncComponentProcessor(): Plugin {
         if (chunk && chunk.type === 'asset' && AsyncComponentsInstance.jsonAsyncComponentsCache.get(key)) {
           // 读取 json 文件内容 | 没出错的话一定是 pages-json
           const jsonCode = JSON.parse(chunk.source.toString())
+          // 缓存原始page-json内容
+          AsyncComponentsInstance.pageJsonCache.set(key, jsonCode)
+
           jsonCode.componentPlaceholder = AsyncComponentsInstance.generateComponentPlaceholderJson(key, jsonCode.componentPlaceholder)
 
           jsonCode.usingComponents = Object.assign(jsonCode.usingComponents || {}, asyncComponents)
           chunk.source = JSON.stringify(jsonCode, null, 2)
         }
         else {
-          const componentPlaceholder = AsyncComponentsInstance.generateComponentPlaceholderJson(key)
-          const usingComponents = asyncComponents
+          let componentPlaceholder = AsyncComponentsInstance.generateComponentPlaceholderJson(key)
+          let usingComponents = asyncComponents
+          const cache = AsyncComponentsInstance.pageJsonCache.get(key)
+
+          if (cache) {
+            usingComponents = Object.assign(cache.usingComponents || {}, usingComponents)
+            componentPlaceholder = Object.assign(cache.componentPlaceholder || {}, componentPlaceholder)
+          }
 
           bundle[`${key}.json`] = {
             type: 'asset',
             name: key,
             fileName: `${key}.json`,
-            source: JSON.stringify({ componentPlaceholder, usingComponents }, null, 2),
+            source: JSON.stringify({ usingComponents, componentPlaceholder }, null, 2),
           } as typeof bundle.__proto__
         }
       })
