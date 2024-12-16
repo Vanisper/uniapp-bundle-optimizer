@@ -22,4 +22,4 @@ dist
 
 archive*
 
-global-method.d.ts
+async-import.d.ts

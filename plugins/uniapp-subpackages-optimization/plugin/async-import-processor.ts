@@ -1,10 +1,12 @@
 /* eslint-disable unused-imports/no-unused-vars */
 import type { Plugin } from 'vite'
 import type { IOptimizationOptions } from '../type'
+import fs from 'node:fs'
+import path from 'node:path'
 import process from 'node:process'
 import MagicString from 'magic-string'
-import { JS_TYPES_RE } from '../../constants'
-import { calculateRelativePath, hasExtension, moduleIdProcessor, parseAsyncImports, resolveAliasPath, resolveAssetsPath, resolveSrcPath } from '../../utils'
+import { JS_TYPES_RE, ROOT_DIR } from '../../constants'
+import { calculateRelativePath, ensureDirectoryExists, hasExtension, moduleIdProcessor, parseAsyncImports, resolveAliasPath, resolveAssetsPath, resolveSrcPath } from '../../utils'
 
 /**
  * 负责处理`AsyncImport`函数调用的传参路径
@@ -27,6 +29,14 @@ export function AsyncImportProcessor(options: IOptimizationOptions): Plugin {
       const magicString = new MagicString(code)
 
       if (asyncImports.length > 0) {
+        // #region 提取引入路径数组，生产类型定义文件
+        const paths = asyncImports.map(item => item.args[0].value.toString())
+        const typeDefinition = generateTypeDefinition(paths)
+        const typesFilePath = path.resolve(ROOT_DIR, 'async-import.d.ts')
+        ensureDirectoryExists(typesFilePath)
+        fs.writeFileSync(typesFilePath, typeDefinition)
+        // #endregion
+
         asyncImports.forEach(({ full, args }) => {
           args.forEach(({ start, end, value }) => {
             // h5 下的开发模式
@@ -130,4 +140,29 @@ function matchRecord(record: Record<string, string>, id: string): [string, strin
       return [key, record[key]]
     }
   }
+}
+
+/**
+ * 生成类型定义
+ */
+function generateTypeDefinition(paths: string[]): string {
+  // 将路径组合成 ModuleMap 中的键
+  const moduleMapEntries = paths
+    .map((p) => {
+      return `  '${p}': typeof import('${p}')`
+    })
+    .join('\n')
+
+  // 返回类型定义
+  return `export {}
+
+interface ModuleMap {
+${moduleMapEntries}
+  [path: string]: any
+}
+
+declare global {
+  function AsyncImport<T extends keyof ModuleMap>(arg: T): Promise<ModuleMap[T]>
+}
+`
 }
