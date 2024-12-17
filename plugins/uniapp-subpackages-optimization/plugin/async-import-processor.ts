@@ -95,7 +95,19 @@ export function AsyncImportProcessor(options: IOptimizationOptions): Plugin {
             }
           }
 
-          moduleId && (acc[moduleIdProcessor(moduleId)] = chunk.fileName)
+          if (moduleId) {
+            acc[moduleIdProcessor(moduleId)] = chunk.fileName
+          }
+          else {
+            // 处理其他的文件的hash化路径映射情况
+            const temp = chunk.moduleIds.filter((id) => {
+              const _id = id.startsWith('\x00') ? id.slice(1) : id
+              return _id !== 'plugin-vue:export-helper'
+            })
+            if (temp.length === 1) {
+              acc[moduleIdProcessor(temp[0])] = chunk.fileName
+            }
+          }
         }
 
         return acc
