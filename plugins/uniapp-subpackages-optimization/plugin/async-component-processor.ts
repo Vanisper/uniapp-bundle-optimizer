@@ -27,7 +27,7 @@ export function AsyncComponentProcessor(): Plugin {
     async transform(source, importer) {
       // 热更新时，由于含有 async 查询参数的导入语句会删除查询部分（为的是避免后续编译处理识别不来该语句）
       // 所以热更新代码时，已经被处理过的代码再次处理时，原本应该被处理的相关查询参数代码已经被删除了，将不会再处理该代码文件
-      // TODO: 后续需要针对以上问题进行优化
+      // TODO: 后续需要针对以上问题进行优化(（好像解决了？）
       const parseResult = lexDefaultImportWithQuery(source).filter(({ modulePath }) => modulePath.value.toString().split('?')[0].endsWith('.vue'))
 
       if (!importer.split('?')[0].endsWith('.vue') || parseResult.length === 0 || !parseResult.some(({ query }) => query.some(({ value }) => value.toString().trim() === 'async'))) {
