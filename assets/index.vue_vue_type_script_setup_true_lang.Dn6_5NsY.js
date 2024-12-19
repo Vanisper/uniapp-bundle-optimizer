@@ -1,1 +1,0 @@
-import{d as s,o as t,c as a,w as e,b as o,y as n,i as r}from"./index-BIdMxKb-.js";const d=s({__name:"index",props:{text:String},setup:s=>(d,i)=>{const p=r;return t(),a(p,{class:"font-bold"},{default:e((()=>[o(" 异步加载组件 - demo - "+n(s.text),1)])),_:1})}});export{d as _};
