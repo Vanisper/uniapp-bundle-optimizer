@@ -7,18 +7,26 @@ import path from 'node:path'
 import process from 'node:process'
 import MagicString from 'magic-string'
 import { EXT_RE, JS_TYPES_RE, ROOT_DIR, SRC_DIR_RE } from '../../constants'
-import { calculateRelativePath, ensureDirectoryExists, hasExtension, moduleIdProcessor, parseAsyncImports, resolveAliasPath, resolveAssetsPath, resolveSrcPath } from '../../utils'
+import { ensureDirectoryExists, moduleIdProcessor, parseAsyncImports, resolveAliasPath, resolveAssetsPath } from '../../utils'
+import { AsyncImports } from '../common/AsyncImports'
 
 /**
  * 负责处理`AsyncImport`函数调用的传参路径
  *
  * @description `transform`阶段处理`AsyncImport()`函数的路径传参，将别名路径转换为真实路径
  * @description `generateBundle`阶段处理`AsyncImport()`函数的路径传参，进一步将路径转换为生产环境的路径（hash化的路径）
+ *
+ * TODO: 暂时不支持app端：首先由于app端实用的是iife模式，代码内容中无法使用`import()`语法，直接会编译报错
  */
 export function AsyncImportProcessor(options: IOptimizationOptions): Plugin {
   const platform = process.env.UNI_PLATFORM
   /** 是否小程序 */
   const isMP = platform.startsWith('mp')
+  /** 是否H5 */
+  const isH5 = platform === 'h5'
+  /** 是否为app */
+  const isApp = platform === 'app'
+  const AsyncImportsInstance = new AsyncImports()
 
   return {
     name: 'async-import-processor',
@@ -29,7 +37,7 @@ export function AsyncImportProcessor(options: IOptimizationOptions): Plugin {
 
       const magicString = new MagicString(code)
 
-      if (asyncImports.length > 0) {
+      if (asyncImports.length > 0 && !isApp) {
         // #region 提取引入路径数组，生产类型定义文件
         const paths = asyncImports.map(item => item.args[0].value.toString())
         const typeDefinition = generateTypeDefinition(paths)
@@ -40,21 +48,9 @@ export function AsyncImportProcessor(options: IOptimizationOptions): Plugin {
 
         asyncImports.forEach(({ full, args }) => {
           args.forEach(({ start, end, value }) => {
-            // h5 下的开发模式
-            if (!isMP && options.command === 'serve' && options.mode === 'development') {
-              magicString.overwrite(full.start, full.start + 'AsyncImport'.length, 'import', { contentOnly: true })
-            }
-            else {
-              const url = value.toString()
-              let normalizedPath = resolveAliasPath(url, true)
-              // 把 `src` 目录下的文件路径转换为相对于根目录的路径
-              normalizedPath = resolveSrcPath(normalizedPath)
-
-              // 将别名路径转换为真实路径
-              const rewrittenUrl = JSON.stringify(normalizedPath)
-              // console.log({ url: value, rewrittenUrl, code: code.substring(start, end) })
-              magicString.overwrite(start, end, rewrittenUrl, { contentOnly: true })
-            }
+            // 加入缓存
+            AsyncImportsInstance.addCache(moduleIdProcessor(id), value.toString())
+            magicString.overwrite(full.start, full.start + 'AsyncImport'.length, 'import', { contentOnly: true })
           })
         })
       }
@@ -64,13 +60,28 @@ export function AsyncImportProcessor(options: IOptimizationOptions): Plugin {
         map: magicString.generateMap({ hires: true }),
       }
     },
+    renderDynamicImport(options) {
+      const cache = AsyncImportsInstance.getCache(moduleIdProcessor(options.moduleId))
+      if (cache && !isApp) {
+        // 如果是js文件的话去掉后缀
+        const targetModuleId = moduleIdProcessor(options.targetModuleId).replace(JS_TYPES_RE, '')
+        if (cache.map(item => resolveAliasPath(item, true).replace(SRC_DIR_RE, 'src/'))
+          .some(item => moduleIdProcessor(item).replace(JS_TYPES_RE, '') === targetModuleId)
+        ) {
+          return {
+            left: 'AsyncImport(',
+            right: ')',
+          }
+        }
+      }
+    },
     generateBundle({ format }, bundle) {
-      // 小程序端为cjs
-      if (!['es', 'cjs'].includes(format))
+      // 小程序端为cjs，app端为iife
+      if (!['es', 'cjs', 'iife'].includes(format) || isApp)
         return
 
       // 页面被当作组件引入了，这是允许的，但是表现不一样，此处缓存记录
-      const pageComponents: Record<string, { code: string, alias: string[] }> = {}
+      const pageComponents: OutputChunk[] = []
 
       const hashFileMap = Object.entries(bundle).reduce((acc, [file, chunk]) => {
         if (chunk.type === 'chunk') {
@@ -81,16 +92,8 @@ export function AsyncImportProcessor(options: IOptimizationOptions): Plugin {
             if (moduleIds.length >= 1 && moduleIds.length < chunk.moduleIds.length) {
               moduleId = moduleIds.at(-1)
             }
-            else if (!moduleIds.length && chunk.fileName) {
-              // TODO: 暂时发现页面被当作组件引入的时候，其code是一致的，所以此处以此为判断依据，可能判断依据不准确
-              const index = Object.values(pageComponents).findIndex(item => item.code === chunk?.code)
-              if (index !== -1) {
-                const target = pageComponents[Object.keys(pageComponents)[index]]
-                target.alias.push(chunk.fileName)
-              }
-              else {
-                pageComponents[chunk.fileName] = { code: chunk.code, alias: [] }
-              }
+            else if (!moduleIds.length && chunk.fileName) { // 处理页面被当作组件引入的情况
+              pageComponents.push(chunk)
               return acc
             }
           }
@@ -113,21 +116,21 @@ export function AsyncImportProcessor(options: IOptimizationOptions): Plugin {
         return acc
       }, {} as Record<string, string | string[]>)
 
-      if (Object.keys(pageComponents).length) {
-        const temp = Object.values(bundle).filter(chunk => chunk.type === 'chunk' && chunk.facadeModuleId === null
-          && chunk.moduleIds.length === 1 && chunk.moduleIds.length === Object.keys(chunk.modules).length
-          && chunk.moduleIds[0] === Object.keys(chunk.modules)[0]) as OutputChunk[]
-
-        temp.forEach((chunk) => {
-          const moduleId = chunk.moduleIds[0]
-          const fileName = moduleIdProcessor(moduleId)
-          if (fileName.startsWith('src/')) {
-            const target = Object.keys(pageComponents).find(key => key.replace(EXT_RE, '') === fileName.replace(EXT_RE, '').replace(SRC_DIR_RE, ''))
-            if (target) {
-              hashFileMap[fileName] = [target, ...pageComponents[target].alias]
+      if (pageComponents.length) {
+        const chunks = Object.values(bundle)
+        for (let index = 0; index < chunks.length; index++) {
+          const chunk = chunks[index]
+          if (chunk.type === 'chunk') {
+            const targetKey = Object.keys(hashFileMap).find((key) => {
+              const value = hashFileMap[key]
+              return typeof value === 'string' ? chunk.imports.includes(value) : value.some((item: string) => chunk.imports.includes(item))
+            })
+            if (targetKey) {
+              const old = typeof hashFileMap[targetKey] === 'string' ? [hashFileMap[targetKey]] : hashFileMap[targetKey] || []
+              hashFileMap[targetKey] = [...old, chunk.fileName]
             }
           }
-        })
+        }
       }
 
       for (const file in bundle) {
@@ -142,22 +145,13 @@ export function AsyncImportProcessor(options: IOptimizationOptions): Plugin {
             asyncImports.forEach(({ full, args }) => {
               args.forEach(({ start, end, value }) => {
                 const url = value.toString()
-                const tempUrl = url.replace(/^\.\//, '') // 去掉路径前面的 './' 便于后续的 matchRecord 匹配
-                const matchResult = matchRecord(hashFileMap, tempUrl)
 
-                if (matchResult) {
-                  let rewrittenUrl: string | undefined
-                  if (!isMP) {
-                    // `assets` 前缀转换为 `./` | TODO: 考虑一下`assets`关键字从配置文件中读取，`assets`只是默认的产物编译路径前缀
-                    rewrittenUrl = JSON.stringify(resolveAssetsPath(matchResult[1]))
-                  }
-                  else {
-                    // 小程序
-                    rewrittenUrl = JSON.stringify(calculateRelativePath(chunk.fileName, matchResult[1]))
-                  }
-                  // console.log({ urlValue: value, rewrittenUrl, old: code.substring(start, end) })
-                  rewrittenUrl && magicString.overwrite(start, end, rewrittenUrl, { contentOnly: true })
-                  // 替换 `AsyncImport` 关键字为 `import` | `require.async`
+                // 去除相对路径的前缀，例如`./`、`../`、`../../`等正确的相对路径的写法，`.../`是不正确的
+                if (
+                  isMP
+                    ? Object.values(hashFileMap).flat().includes(url.replace(/^(\.\/|\.\.\/)+/, ''))
+                    : Object.values(hashFileMap).flat().map(resolveAssetsPath).includes(url)
+                ) {
                   magicString.overwrite(full.start, full.start + 'AsyncImport'.length, isMP ? 'require.async' : 'import', { contentOnly: true })
                 }
               })
@@ -168,24 +162,6 @@ export function AsyncImportProcessor(options: IOptimizationOptions): Plugin {
         }
       }
     },
-  }
-}
-
-function matchRecord(record: Record<string, string | string[]>, id: string): [string, string] | undefined {
-  for (const key in record) {
-    const value = record[key]
-    const result = Array.isArray(value) ? value[0] : value
-    // 处理js/ts文件 ｜ 没有后缀，则认为是 js/ts/mjs 文件
-    if ((!hasExtension(id) || JS_TYPES_RE.test(id)) && JS_TYPES_RE.test(key)) {
-      // 去除key的后缀
-      const keyWithoutExt = key.replace(JS_TYPES_RE, '')
-      if (keyWithoutExt.endsWith(id.replace(JS_TYPES_RE, ''))) {
-        return [key, result]
-      }
-    }
-    else if (key.endsWith(id)) {
-      return [key, result]
-    }
   }
 }
 
